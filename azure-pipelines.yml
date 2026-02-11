@@ -7,12 +7,13 @@ pool:
 variables:
   appServer: "13.235.31.157"
   appUser: "ubuntu"
+  deployPath: "/var/lib/tomcat9/webapps"
 
 steps:
 
 - checkout: self
 
-# Step 1 - Make build executable
+# Step 1 - Make build script executable
 - script: |
     chmod +x build.sh
   displayName: "Make build.sh executable"
@@ -22,7 +23,7 @@ steps:
     ./build.sh
   displayName: "Run build.sh"
 
-# Step 3 - Find WAR dynamically
+# Step 3 - Locate WAR dynamically
 - script: |
     echo "Searching for WAR file..."
     WAR_FILE=$(find . -type f -name "*.war" | head -n 1)
@@ -36,13 +37,17 @@ steps:
     echo "##vso[task.setvariable variable=WAR_PATH]$WAR_FILE"
   displayName: "Locate WAR file"
 
-# Step 4 - Deploy WAR to AWS
+# Step 4 - Clean old deployment and copy new WAR
 - script: |
-    echo "Deploying $(WAR_PATH) to AWS..."
-    scp "$(WAR_PATH)" $(appUser)@$(appServer):/var/lib/tomcat9/webapps/
-  displayName: "Deploy WAR to AWS EC2"
+    echo "Removing old ROOT folder..."
+    ssh $(appUser)@$(appServer) "rm -rf $(deployPath)/ROOT"
+
+    echo "Copying new WAR..."
+    scp "$(WAR_PATH)" $(appUser)@$(appServer):$(deployPath)/ROOT.war
+  displayName: "Deploy Fresh ROOT.war"
 
 # Step 5 - Restart Tomcat
 - script: |
+    echo "Restarting Tomcat..."
     ssh $(appUser)@$(appServer) "sudo systemctl restart tomcat9"
-  displayName: "Restart Tomcat on AWS"
+  displayName: "Restart Tomcat"
