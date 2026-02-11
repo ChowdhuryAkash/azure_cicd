@@ -1,0 +1,38 @@
+trigger:
+- main
+
+pool:
+  name: Default   # Self-hosted agent pool
+
+variables:
+  appServer: "13.235.31.157"
+  appUser: "ubuntu"
+
+steps:
+
+- checkout: self
+
+# Step 1 - Make build script executable
+- script: |
+    chmod +x build.sh
+  displayName: "Make build.sh executable"
+
+# Step 2 - Run build
+- script: |
+    ./build.sh
+  displayName: "Run build.sh"
+
+# Step 3 - Verify WAR generated
+- script: |
+    ls -l target
+  displayName: "Verify WAR file"
+
+# Step 4 - Deploy WAR to AWS
+- script: |
+    scp target/*.war $(appUser)@$(appServer):/var/lib/tomcat9/webapps/
+  displayName: "Deploy WAR to AWS EC2"
+
+# Step 5 - Restart Tomcat on AWS
+- script: |
+    ssh $(appUser)@$(appServer) "sudo systemctl restart tomcat9"
+  displayName: "Restart Tomcat on AWS"
